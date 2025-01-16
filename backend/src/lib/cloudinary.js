@@ -1,8 +1,8 @@
-import {v2 as cloudinary} from "cloudinary"
+import {config} from 'dotenv';
 
-import {config} from 'dotenv'
+config();
+import {v2 as cloudinary} from "cloudinary";
 
-config()
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
