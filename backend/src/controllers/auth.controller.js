@@ -78,7 +78,7 @@ export const login = async (req, res) => {
       console.log("Error in login controller", error.message);
       res.status(500).json({message: "internal Server Error"})
     }
-};
+}; //implemented
 
 export const logout = (req, res) => {
     try {
@@ -89,4 +89,8 @@ export const logout = (req, res) => {
       res.status(500).json({message: "Internal Server Error"});
            
     }
+}; //implemented
+
+export const updateProfile = async (req,res) => {
+  
 };
