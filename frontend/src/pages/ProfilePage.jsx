@@ -6,19 +6,53 @@ const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
 
+  // const handleImageUpload = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+
+  //   const reader = new FileReader();
+
+  //   reader.readAsDataURL(file);
+
+  //   reader.onload = async () => {
+  //     const base64Image = reader.result;
+  //     setSelectedImg(base64Image);
+  //     await updateProfile({ profilePic: base64Image });
+  //   };
+  // };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
+  
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      alert("Please select a valid image file (JPEG, PNG, or GIF)");
+      return;
+    }
+  
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert("Image size must be less than 5MB");
+      return;
+    }
+  
     const reader = new FileReader();
-
-    reader.readAsDataURL(file);
-
+  
     reader.onload = async () => {
       const base64Image = reader.result;
       setSelectedImg(base64Image);
-      await updateProfile({ profilePic: base64Image });
+      try {
+        await updateProfile({ profilePic: base64Image });
+      } catch (err) {
+        setSelectedImg(null); // Reset on error
+        alert(err.message || "Failed to update profile picture");
+      }
     };
+  
+    reader.readAsDataURL(file);
   };
 
   return (
