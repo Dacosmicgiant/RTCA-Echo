@@ -98,8 +98,113 @@ export const useAuthStore = create((set, get) => ({
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
     });
+
+    // Enhanced message listener with notifications
+    socket.on("newMessage", (newMessage) => {
+      // Play notification sound using a simple approach
+      get().playNotificationSound();
+
+      // Show browser notification if page is not focused
+      if (document.hidden && Notification.permission === 'granted') {
+        // Get sender name from the message or fallback
+        const senderName = newMessage.senderName || newMessage.senderFullName || 'Someone';
+        
+        const notification = new Notification(`New message from ${senderName}`, {
+          body: newMessage.text || 'Sent an image',
+          icon: newMessage.senderProfilePic || '/avatar.png',
+          tag: `message-${newMessage.senderId}`,
+          requireInteraction: false,
+          silent: false
+        });
+
+        // Auto-close notification after 4 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 4000);
+
+        // Handle notification click to focus window
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+    });
+
+    // Listen for typing events from backend
+    socket.on("userTyping", ({ userId, isTyping, userName }) => {
+      // This will be handled by the chat store
+      // We just need to emit this to the chat store
+    });
   },
+
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    if (get().socket?.connected) {
+      get().socket.disconnect();
+      set({ socket: null });
+    }
   },
+
+  // Simple notification sound function
+  playNotificationSound: () => {
+    try {
+      // Check if sounds are enabled in localStorage
+      const soundEnabled = JSON.parse(localStorage.getItem('chat-sound-enabled') ?? 'true');
+      if (!soundEnabled) return;
+
+      // Get selected sound and volume from localStorage
+      const selectedSound = localStorage.getItem('chat-selected-sound') || 'default';
+      const volume = parseFloat(localStorage.getItem('chat-volume') || '0.5');
+
+      if (selectedSound === 'none') return;
+
+      // Create audio context and play sound
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Set frequency based on sound type
+      const frequencies = {
+        default: 800,
+        pop: 1000,
+        chime: 600,
+        ding: 1200
+      };
+      
+      oscillator.frequency.value = frequencies[selectedSound] || 800;
+      oscillator.type = 'sine';
+      
+      // Apply volume
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume * 0.1, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.warn('Could not play notification sound:', error);
+    }
+  },
+
+  // Request notification permission
+  requestNotificationPermission: async () => {
+    if (!('Notification' in window)) {
+      console.warn('This browser does not support notifications');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission === 'denied') {
+      return false;
+    }
+
+    // Request permission
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
 }));
