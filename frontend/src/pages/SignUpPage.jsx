@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
 import { Link } from "react-router-dom";
-
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 
@@ -22,52 +21,46 @@ const SignUpPage = () => {
     if (!/\S+@\S+\.\S+/.test(formData.email)) return toast.error("Invalid email format");
     if (!formData.password) return toast.error("Password is required");
     if (formData.password.length < 6) return toast.error("Password must be at least 6 characters");
-
     return true;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     const success = validateForm();
-
     if (success === true) signup(formData);
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-gradient-to-br from-base-200 via-base-100 to-base-200">
+    <div className="h-[calc(100vh-64px)] mt-16 grid lg:grid-cols-2 overflow-hidden">
       {/* left side */}
-      <div className="flex flex-col justify-center items-center p-6 sm:p-12 relative">
-        {/* Background blur effect */}
-        <div className="absolute inset-0 bg-base-100/30 backdrop-blur-sm"></div>
-        
-        <div className="w-full max-w-md space-y-8 relative z-10">
+      <div className="flex flex-col justify-center items-center p-4 sm:p-8">
+        <div className="w-full max-w-md space-y-6">
           {/* LOGO */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="flex flex-col items-center gap-2 group">
               <div
-                className="size-12 rounded-xl bg-primary/20 backdrop-blur-sm flex items-center justify-center 
-              group-hover:bg-primary/30 transition-all duration-300 shadow-lg border border-primary/20"
+                className="size-10 rounded-xl bg-primary/10 flex items-center justify-center 
+                group-hover:bg-primary/20 transition-colors"
               >
-                <MessageSquare className="size-6 text-primary" />
+                <MessageSquare className="size-5 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold mt-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Create Account</h1>
-              <p className="text-base-content/70">Get started with your free account</p>
+              <h1 className="text-xl font-bold mt-1">Create Account</h1>
+              <p className="text-sm text-base-content/60">Get started with your free account</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Full Name</span>
+                <span className="label-text font-medium text-sm">Full Name</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="size-5 text-base-content/40" />
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <User className="size-4 text-base-content/40" />
                 </div>
                 <input
                   type="text"
-                  className="input w-full pl-10 bg-base-100/80 backdrop-blur-sm border-base-300/50 focus:border-primary/50 transition-all duration-200"
+                  className="input input-bordered w-full pl-8 text-sm"
                   placeholder="John Doe"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -77,15 +70,15 @@ const SignUpPage = () => {
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Email</span>
+                <span className="label-text font-medium text-sm">Email</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="size-5 text-base-content/40" />
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <Mail className="size-4 text-base-content/40" />
                 </div>
                 <input
                   type="email"
-                  className="input w-full pl-10 bg-base-100/80 backdrop-blur-sm border-base-300/50 focus:border-primary/50 transition-all duration-200"
+                  className="input input-bordered w-full pl-8 text-sm"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -95,41 +88,37 @@ const SignUpPage = () => {
 
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Password</span>
+                <span className="label-text font-medium text-sm">Password</span>
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="size-5 text-base-content/40" />
+                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                  <Lock className="size-4 text-base-content/40" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="input w-full pl-10 bg-base-100/80 backdrop-blur-sm border-base-300/50 focus:border-primary/50 transition-all duration-200"
+                  className="input input-bordered w-full pl-8 text-sm"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-primary transition-colors duration-200"
+                  className="absolute inset-y-0 right-0 pr-2 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="size-5 text-base-content/40" />
+                    <EyeOff className="size-4 text-base-content/40" />
                   ) : (
-                    <Eye className="size-5 text-base-content/40" />
+                    <Eye className="size-4 text-base-content/40" />
                   )}
                 </button>
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary w-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]" 
-              disabled={isSigningUp}
-            >
+            <button type="submit" className="btn btn-primary w-full btn-sm" disabled={isSigningUp}>
               {isSigningUp ? (
                 <>
-                  <Loader2 className="size-5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                   Loading...
                 </>
               ) : (
@@ -139,9 +128,9 @@ const SignUpPage = () => {
           </form>
 
           <div className="text-center">
-            <p className="text-base-content/60">
+            <p className="text-sm text-base-content/60">
               Already have an account?{" "}
-              <Link to="/login" className="link link-primary hover:text-primary/80 transition-colors duration-200">
+              <Link to="/login" className="link link-primary">
                 Sign in
               </Link>
             </p>
@@ -150,7 +139,7 @@ const SignUpPage = () => {
       </div>
 
       {/* right side */}
-      <div className="bg-gradient-to-br from-base-300/50 to-base-200/80 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-base-300/50 to-base-200/80 backdrop-blur-sm hidden lg:block">
         <AuthImagePattern
           title="Join our community"
           subtitle="Connect with friends, share moments, and stay in touch with your loved ones."
@@ -159,5 +148,4 @@ const SignUpPage = () => {
     </div>
   );
 };
-
 export default SignUpPage;
