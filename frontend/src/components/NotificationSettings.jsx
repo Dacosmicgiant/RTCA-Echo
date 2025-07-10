@@ -174,62 +174,7 @@ const NotificationSettings = () => {
         </div>
       )}
 
-      {/* Browser Notifications */}
-      <div className="p-4 bg-base-200 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="font-medium">Browser Notifications</p>
-            <p className="text-sm text-base-content/60">
-              Show desktop notifications when the app is not focused
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              if (Notification.permission === 'default') {
-                Notification.requestPermission();
-              }
-            }}
-            className={`btn btn-sm ${
-              Notification.permission === 'granted' 
-                ? 'btn-success' 
-                : Notification.permission === 'denied'
-                ? 'btn-error'
-                : 'btn-primary'
-            }`}
-          >
-            {Notification.permission === 'granted' 
-              ? 'Enabled' 
-              : Notification.permission === 'denied'
-              ? 'Blocked'
-              : 'Enable'
-            }
-          </button>
-        </div>
-        {Notification.permission === 'denied' && (
-          <div className="text-sm text-error">
-            Notifications are blocked. Enable them in your browser settings.
-          </div>
-        )}
-      </div>
-
-      {/* Test Notification Button */}
-      <div className="flex justify-center">
-        <button
-          onClick={() => {
-            testSound(selectedSound);
-            if (Notification.permission === 'granted') {
-              new Notification('Test Notification', {
-                body: 'This is how your notifications will look!',
-                icon: '/avatar.png'
-              });
-            }
-          }}
-          className="btn btn-outline btn-primary"
-          disabled={!soundEnabled && Notification.permission !== 'granted'}
-        >
-          Test Notification
-        </button>
-      </div>
+      
     </div>
   );
 };
