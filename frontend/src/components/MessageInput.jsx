@@ -63,32 +63,66 @@ const MessageInput = () => {
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
   
-  const { sendMessage, selectedUser, setTypingStatus, saveDraft, getDraft } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
+
+  // Draft management functions
+  const saveDraft = (userId, draftText) => {
+    try {
+      const drafts = JSON.parse(localStorage.getItem('chat-drafts') || '{}');
+      drafts[userId] = draftText;
+      localStorage.setItem('chat-drafts', JSON.stringify(drafts));
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+    }
+  };
+
+  const getDraft = (userId) => {
+    try {
+      const drafts = JSON.parse(localStorage.getItem('chat-drafts') || '{}');
+      return drafts[userId] || '';
+    } catch (error) {
+      console.error('Failed to get draft:', error);
+      return '';
+    }
+  };
+
+  const clearDraft = (userId) => {
+    try {
+      const drafts = JSON.parse(localStorage.getItem('chat-drafts') || '{}');
+      delete drafts[userId];
+      localStorage.setItem('chat-drafts', JSON.stringify(drafts));
+    } catch (error) {
+      console.error('Failed to clear draft:', error);
+    }
+  };
+
+  // Typing indicator functions
+  const emitTyping = (isTypingNow) => {
+    // This would emit to socket when backend is ready
+    // For now, just console log
+    console.log(`User is typing: ${isTypingNow}`);
+  };
 
   // Load draft when selected user changes
   useEffect(() => {
     if (selectedUser) {
       const draft = getDraft(selectedUser._id);
-      if (draft) {
-        setText(draft);
-      } else {
-        setText("");
-      }
+      setText(draft);
     }
-  }, [selectedUser, getDraft]);
+  }, [selectedUser]);
 
   // Save draft when text changes
   useEffect(() => {
     if (selectedUser && text !== getDraft(selectedUser._id)) {
       saveDraft(selectedUser._id, text);
     }
-  }, [text, selectedUser, saveDraft, getDraft]);
+  }, [text, selectedUser]);
 
   // Handle typing indicators
   useEffect(() => {
     if (text.trim() && !isTyping) {
       setIsTyping(true);
-      setTypingStatus(selectedUser._id, true);
+      emitTyping(true);
     }
 
     // Clear existing timeout
@@ -100,7 +134,7 @@ const MessageInput = () => {
     typingTimeoutRef.current = setTimeout(() => {
       if (isTyping) {
         setIsTyping(false);
-        setTypingStatus(selectedUser._id, false);
+        emitTyping(false);
       }
     }, 2000);
 
@@ -109,7 +143,7 @@ const MessageInput = () => {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [text, isTyping, selectedUser, setTypingStatus]);
+  }, [text, isTyping, selectedUser]);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -212,6 +246,44 @@ const MessageInput = () => {
     setShowEmojiPicker(false);
   };
 
+  const playNotificationSound = () => {
+    try {
+      const soundEnabled = JSON.parse(localStorage.getItem('chat-sound-enabled') ?? 'true');
+      if (!soundEnabled) return;
+
+      const selectedSound = localStorage.getItem('chat-selected-sound') || 'default';
+      const volume = parseFloat(localStorage.getItem('chat-volume') || '0.5');
+
+      if (selectedSound === 'none') return;
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      const frequencies = {
+        default: 800,
+        pop: 1000,
+        chime: 600,
+        ding: 1200
+      };
+      
+      oscillator.frequency.value = frequencies[selectedSound] || 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume * 0.1, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.warn('Could not play notification sound:', error);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
@@ -221,7 +293,7 @@ const MessageInput = () => {
     // Stop typing indicator
     if (isTyping) {
       setIsTyping(false);
-      setTypingStatus(selectedUser._id, false);
+      emitTyping(false);
     }
 
     try {
@@ -232,10 +304,13 @@ const MessageInput = () => {
         image: imagePreview,
       });
 
+      // Play sound on send
+      playNotificationSound();
+
       // Clear form and draft
       setText("");
       setImagePreview(null);
-      saveDraft(selectedUser._id, "");
+      clearDraft(selectedUser._id);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -254,17 +329,20 @@ const MessageInput = () => {
   return (
     <div className="p-4 w-full relative">
       {imagePreview && (
-        <div className="mb-3 flex items-center gap-2 animate-fadeIn">
+        <div className="mb-3 flex items-center gap-2" style={{animation: 'fadeIn 0.3s ease-in-out'}}>
           <div className="relative">
             <img
               src={imagePreview}
               alt="Preview"
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-700 transition-transform hover:scale-105"
+              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              style={{transition: 'transform 0.2s', cursor: 'pointer'}}
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
-              flex items-center justify-center hover:bg-red-500 transition-colors"
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center hover:bg-red-500"
+              style={{transition: 'background-color 0.2s'}}
               type="button"
             >
               <X className="size-3" />
@@ -279,8 +357,8 @@ const MessageInput = () => {
             <input
               ref={inputRef}
               type="text"
-              className="w-full input input-bordered rounded-lg input-sm sm:input-md 
-                       transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+              className="w-full input input-bordered rounded-lg input-sm sm:input-md"
+              style={{transition: 'all 0.2s'}}
               placeholder="Type a message..."
               value={text}
               onChange={handleTextChange}
@@ -291,8 +369,8 @@ const MessageInput = () => {
             {showEmojiPicker && (
               <div 
                 ref={emojiPickerRef}
-                className="absolute bottom-full mb-2 right-0 bg-base-100 border border-base-300 
-                         rounded-lg shadow-lg p-3 w-64 z-50 animate-slideUp"
+                className="absolute bottom-full mb-2 right-0 bg-base-100 border border-base-300 rounded-lg shadow-lg p-3 w-64 z-50"
+                style={{animation: 'slideUp 0.2s ease-out'}}
               >
                 <div className="grid grid-cols-6 gap-2">
                   {COMMON_EMOJIS.map((emoji, index) => (
@@ -300,7 +378,8 @@ const MessageInput = () => {
                       key={index}
                       type="button"
                       onClick={() => handleEmojiSelect(emoji)}
-                      className="p-2 hover:bg-base-200 rounded transition-colors text-lg"
+                      className="p-2 hover:bg-base-200 rounded text-lg"
+                      style={{transition: 'background-color 0.2s'}}
                     >
                       {emoji}
                     </button>
@@ -323,8 +402,10 @@ const MessageInput = () => {
 
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle transition-all duration-200
-                     ${imagePreview ? "text-emerald-500 scale-110" : "text-zinc-400 hover:text-zinc-300"}`}
+            className={`hidden sm:flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            style={{transition: 'all 0.2s'}}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             onClick={() => fileInputRef.current?.click()}
           >
             <Image size={20} />
@@ -332,7 +413,10 @@ const MessageInput = () => {
 
           <button
             type="button"
-            className="hidden sm:flex btn btn-circle transition-all duration-200 hover:scale-110"
+            className="hidden sm:flex btn btn-circle"
+            style={{transition: 'all 0.2s'}}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           >
             <Smile size={20} className={showEmojiPicker ? "text-yellow-400" : "text-zinc-400"} />
@@ -341,9 +425,10 @@ const MessageInput = () => {
         
         <button
           type="submit"
-          className={`btn btn-sm btn-circle transition-all duration-200 
-                    ${isSending ? "loading" : "hover:scale-110"}
-                    ${(!text.trim() && !imagePreview) ? "opacity-50" : "hover:bg-primary hover:text-primary-content"}`}
+          className={`btn btn-sm btn-circle ${isSending ? "loading" : ""} ${(!text.trim() && !imagePreview) ? "opacity-50" : ""}`}
+          style={{transition: 'all 0.2s'}}
+          onMouseEnter={(e) => !isSending && (e.target.style.transform = 'scale(1.1)')}
+          onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
           disabled={(!text.trim() && !imagePreview) || isSending}
         >
           {isSending ? (

@@ -1,16 +1,78 @@
 import { Volume2, VolumeX, Play } from "lucide-react";
-import { useNotificationStore } from "../store/useNotificationStore";
+import { useState, useEffect } from "react";
 
 const NotificationSettings = () => {
-  const {
-    soundEnabled,
-    selectedSound,
-    volume,
-    setSoundEnabled,
-    setSelectedSound,
-    setVolume,
-    testSound
-  } = useNotificationStore();
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const [selectedSound, setSelectedSoundState] = useState('default');
+  const [volume, setVolumeState] = useState(0.5);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSoundEnabled = localStorage.getItem('chat-sound-enabled');
+      const savedSelectedSound = localStorage.getItem('chat-selected-sound');
+      const savedVolume = localStorage.getItem('chat-volume');
+
+      if (savedSoundEnabled !== null) {
+        setSoundEnabledState(JSON.parse(savedSoundEnabled));
+      }
+      if (savedSelectedSound) {
+        setSelectedSoundState(savedSelectedSound);
+      }
+      if (savedVolume) {
+        setVolumeState(parseFloat(savedVolume));
+      }
+    } catch (error) {
+      console.error('Failed to load notification settings:', error);
+    }
+  }, []);
+
+  const setSoundEnabled = (enabled) => {
+    setSoundEnabledState(enabled);
+    localStorage.setItem('chat-sound-enabled', JSON.stringify(enabled));
+  };
+
+  const setSelectedSound = (sound) => {
+    setSelectedSoundState(sound);
+    localStorage.setItem('chat-selected-sound', sound);
+  };
+
+  const setVolume = (vol) => {
+    setVolumeState(vol);
+    localStorage.setItem('chat-volume', vol.toString());
+  };
+
+  const testSound = (soundName) => {
+    try {
+      if (soundName === 'none') return;
+
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      const frequencies = {
+        default: 800,
+        pop: 1000,
+        chime: 600,
+        ding: 1200
+      };
+      
+      oscillator.frequency.value = frequencies[soundName] || 800;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume * 0.1, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.warn('Could not play test sound:', error);
+    }
+  };
 
   const soundOptions = [
     { value: 'default', label: 'Default' },
@@ -52,7 +114,7 @@ const NotificationSettings = () => {
 
       {/* Sound Selection */}
       {soundEnabled && (
-        <div className="space-y-3 animate-fadeIn">
+        <div className="space-y-3" style={{animation: 'fadeIn 0.3s ease-in-out'}}>
           <label className="text-sm font-medium">Notification Sound</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {soundOptions.map((option) => (
@@ -70,7 +132,7 @@ const NotificationSettings = () => {
                 <span className="font-medium">{option.label}</span>
                 <div className="flex items-center gap-2">
                   {selectedSound === option.value && (
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                    <div className="w-2 h-2 bg-primary rounded-full" style={{animation: 'pulse 2s infinite'}} />
                   )}
                   <button
                     onClick={(e) => {
@@ -91,7 +153,7 @@ const NotificationSettings = () => {
 
       {/* Volume Control */}
       {soundEnabled && selectedSound !== 'none' && (
-        <div className="space-y-3 animate-fadeIn">
+        <div className="space-y-3" style={{animation: 'fadeIn 0.3s ease-in-out'}}>
           <label className="text-sm font-medium">Volume</label>
           <div className="flex items-center gap-3">
             <VolumeX className="w-4 h-4 text-base-content/50" />
@@ -148,6 +210,25 @@ const NotificationSettings = () => {
             Notifications are blocked. Enable them in your browser settings.
           </div>
         )}
+      </div>
+
+      {/* Test Notification Button */}
+      <div className="flex justify-center">
+        <button
+          onClick={() => {
+            testSound(selectedSound);
+            if (Notification.permission === 'granted') {
+              new Notification('Test Notification', {
+                body: 'This is how your notifications will look!',
+                icon: '/avatar.png'
+              });
+            }
+          }}
+          className="btn btn-outline btn-primary"
+          disabled={!soundEnabled && Notification.permission !== 'granted'}
+        >
+          Test Notification
+        </button>
       </div>
     </div>
   );

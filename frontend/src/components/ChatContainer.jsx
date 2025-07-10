@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -14,32 +14,46 @@ const ChatContainer = () => {
     isMessagesLoading,
     selectedUser,
     subscribeToMessages,
-    unsubscribeFromMessages,
-    getTypingStatus,
-    initializeDrafts
+    unsubscribeFromMessages
   } = useChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
-
-  // Initialize drafts on mount
-  useEffect(() => {
-    initializeDrafts();
-  }, [initializeDrafts]);
+  const [typingUsers, setTypingUsers] = useState(new Set());
 
   useEffect(() => {
     getMessages(selectedUser._id);
     subscribeToMessages();
 
-    return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+    // Listen for typing events (simulated for now)
+    const handleTypingEvent = (event) => {
+      if (event.detail && event.detail.userId !== authUser._id) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (event.detail.isTyping) {
+            newSet.add(event.detail.userId);
+          } else {
+            newSet.delete(event.detail.userId);
+          }
+          return newSet;
+        });
+      }
+    };
+
+    window.addEventListener('userTyping', handleTypingEvent);
+
+    return () => {
+      unsubscribeFromMessages();
+      window.removeEventListener('userTyping', handleTypingEvent);
+    };
+  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages, authUser._id]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, typingUsers]);
 
-  const isTyping = getTypingStatus(selectedUser._id);
+  const isUserTyping = typingUsers.has(selectedUser._id);
 
   if (isMessagesLoading) {
     return (
@@ -59,12 +73,27 @@ const ChatContainer = () => {
         {messages.map((message, index) => (
           <div
             key={message._id}
-            className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}
-                       ${message.isNew ? "animate-messageSlideIn" : ""} 
-                       transition-all duration-300 hover:scale-[1.02] hover:shadow-sm`}
+            className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
+            style={{
+              animation: message.isNew ? 'messageSlideIn 0.4s ease-out' : 'none',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           >
             <div className="chat-image avatar">
-              <div className="size-10 rounded-full border transition-transform hover:scale-110">
+              <div 
+                className="size-10 rounded-full border"
+                style={{transition: 'transform 0.2s'}}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
                 <img
                   src={
                     message.senderId === authUser._id
@@ -77,21 +106,44 @@ const ChatContainer = () => {
               </div>
             </div>
             <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1 transition-opacity hover:opacity-75">
+              <time 
+                className="text-xs opacity-50 ml-1"
+                style={{transition: 'opacity 0.2s'}}
+                onMouseEnter={(e) => e.target.style.opacity = '0.75'}
+                onMouseLeave={(e) => e.target.style.opacity = '0.5'}
+              >
                 {formatMessageTime(message.createdAt)}
               </time>
             </div>
-            <div className={`chat-bubble flex flex-col transition-all duration-200 
-                           ${message.senderId === authUser._id 
-                             ? "hover:bg-primary/90" 
-                             : "hover:bg-base-300/80"}`}>
+            <div 
+              className={`chat-bubble flex flex-col ${
+                message.senderId === authUser._id 
+                  ? "bg-primary text-primary-content" 
+                  : "bg-base-200"
+              }`}
+              style={{
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (message.senderId === authUser._id) {
+                  e.target.style.backgroundColor = 'oklch(var(--p) / 0.9)';
+                } else {
+                  e.target.style.backgroundColor = 'oklch(var(--b3) / 0.8)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '';
+              }}
+            >
               {message.image && (
                 <img
                   src={message.image}
                   alt="Attachment"
-                  className="sm:max-w-[200px] rounded-md mb-2 transition-transform hover:scale-105 cursor-pointer"
+                  className="sm:max-w-[200px] rounded-md mb-2 cursor-pointer"
+                  style={{transition: 'transform 0.3s ease'}}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   onClick={() => {
-                    // Open image in new tab
                     window.open(message.image, '_blank');
                   }}
                 />
@@ -102,8 +154,11 @@ const ChatContainer = () => {
         ))}
         
         {/* Typing indicator */}
-        {isTyping && (
-          <div className="chat chat-start animate-fadeIn">
+        {isUserTyping && (
+          <div 
+            className="chat chat-start"
+            style={{animation: 'fadeIn 0.3s ease-in-out'}}
+          >
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
@@ -113,12 +168,30 @@ const ChatContainer = () => {
                 />
               </div>
             </div>
-            <div className="chat-bubble bg-base-300 flex items-center space-x-1">
+            <div className="chat-bubble bg-base-300 flex items-center space-x-2">
               <span className="text-sm opacity-70">{selectedUser.fullName} is typing</span>
               <div className="flex space-x-1">
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div 
+                  className="w-1 h-1 bg-current rounded-full"
+                  style={{
+                    animation: 'bounce 1.4s infinite ease-in-out',
+                    animationDelay: '0ms'
+                  }}
+                ></div>
+                <div 
+                  className="w-1 h-1 bg-current rounded-full"
+                  style={{
+                    animation: 'bounce 1.4s infinite ease-in-out',
+                    animationDelay: '150ms'
+                  }}
+                ></div>
+                <div 
+                  className="w-1 h-1 bg-current rounded-full"
+                  style={{
+                    animation: 'bounce 1.4s infinite ease-in-out',
+                    animationDelay: '300ms'
+                  }}
+                ></div>
               </div>
             </div>
           </div>
